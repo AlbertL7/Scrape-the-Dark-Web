@@ -57,8 +57,9 @@ def get_current_ip():
         return None, None
 
 def start_tor():
-    tor_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Tor\\tor.exe"
-    torrc_custom_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Data\\Tor\\torrc_custom"
+    tor_path = " " # Enter the file path to "tor.exe"
+    torrc_custom_path = " " # Create a file called torcc_custom_path and enter the file path to \Tor Browser\Browser\TorBrowser\Data\Tor\geoip, and \Tor Browser\Browser\TorBrowser\Data\Tor\geoip6 in the created file 
+                            # Be sure to prefix each path with GeoIPFile and GeoIPv6File Respectively and enter the file path into the torrc_custom_path variable
 
     # Terminate existing tor.exe processes
     for process in psutil.process_iter(['pid', 'name']):
@@ -220,7 +221,7 @@ def query_onion_sites_from_file(file_path, tor_session, timeout=60):
 
 def get_tor_exit_node_ip(session):
     try:
-        response = session.get("https://api.ipify.org")
+        response = session.get("https://api.ipify.org") # if you want an api key just visit the website and sign up its free!
         return response.text
     except Exception as e:
         print(f"[+] Error fetching exit node IP address: {e}")
