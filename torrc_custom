@@ -1,0 +1,2 @@
+GeoIPFile <Replace this with the path to your tor browser geoip6>\Tor Browser\Browser\TorBrowser\Data\Tor\geoip
+GeoIPv6File <Replace this with the path to your tor browser geoip6>\Tor Browser\Browser\TorBrowser\Data\Tor\geoip6
