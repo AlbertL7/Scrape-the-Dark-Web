@@ -8,6 +8,7 @@ import psutil
 import time
 import sys
 import json
+import Cleaner
 
 default_onion_sites = [
 "mbrlkbtq5jonaqkurjwmxftytyn2ethqvbxfu4rgjbkkknndqwae6byd.onion", # Ransomware Intel Gathering dark web sites
@@ -57,9 +58,8 @@ def get_current_ip():
         return None, None
 
 def start_tor():
-    tor_path = " " # Enter the file path to "tor.exe"
-    torrc_custom_path = " " # Create a file called torcc_custom_path and enter the file path to \Tor Browser\Browser\TorBrowser\Data\Tor\geoip, and \Tor Browser\Browser\TorBrowser\Data\Tor\geoip6 in the created file 
-                            # Be sure to prefix each path with GeoIPFile and GeoIPv6File Respectively and enter the file path into the torrc_custom_path variable
+    tor_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Tor\\tor.exe"
+    torrc_custom_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Data\\Tor\\torrc_custom"
 
     # Terminate existing tor.exe processes
     for process in psutil.process_iter(['pid', 'name']):
@@ -141,15 +141,19 @@ def tor_scraper(use_tor, custom_site="", custom_timeout=60):
     
     mineddata = default_onion_sites
 
-    # Fetch content of each .onion site using Tor
+    # Fetch content of each .onion site using Tor and clean html / remove javascript / save image paths
     for link in mineddata:
         onion_url = f"http://{link}"
         onion_content = fetch_onion_content(session, onion_url, custom_site, custom_timeout)
         if onion_content:
+            # Clean the fetched content using Cleaner
+            cleaned_content = Cleaner.strip_html_tags_keep_images_remove_javascript(onion_content)
+
+            # Write the cleaned content to a file
             content_filename = f"{link.replace('.onion/', '')}.txt"
             with open(content_filename, "w+", encoding="utf-8") as content_file:
-                content_file.write(onion_content)
-            print(f"[+] Content from {link} written to file: {content_filename}")
+                content_file.write(cleaned_content)
+            print(f"[+] Cleaned content from {link} written to file: {content_filename}")
 
     if tor_process is not None:
         tor_process.terminate()
@@ -221,7 +225,7 @@ def query_onion_sites_from_file(file_path, tor_session, timeout=60):
 
 def get_tor_exit_node_ip(session):
     try:
-        response = session.get("https://api.ipify.org") # if you want an api key just visit the website and sign up its free!
+        response = session.get("https://api.ipify.org")
         return response.text
     except Exception as e:
         print(f"[+] Error fetching exit node IP address: {e}")
@@ -239,6 +243,13 @@ def get_tor_ip_location(exit_node_ip, api_key):
     except Exception as e:
         print(f"[+] Error fetching IP location: {e}")
         return None
+    
+def create_date_based_directory():
+    current_date = datetime.datetime.now().strftime("%m-%d-%Y")
+    directory_name = f"saved_files_{current_date}"
+    if not os.path.exists(directory_name):
+        os.makedirs(directory_name)
+    return directory_name
 
 
 def main():
@@ -251,7 +262,7 @@ def main():
         parser.add_argument("--default_sites", action="store_true", help="Fetch content from default .onion sites, these are hard coded sites.")
         parser.add_argument("--query_to_tor", action="store_true", help="Get HTML content from the file created from the query you made.")
         parser.add_argument("--file", default="", help="Provide a file with .onion sites and fetch the content")
-        parser.add_argument("--api-key", default="", help="API key for ipgeolocation.io")
+        parser.add_argument("--api-key", default="", help="API key for ipgeolocation.io, easy Exit Node IP location lookup")
         args = parser.parse_args()
 
         session = None
