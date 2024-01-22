@@ -8,7 +8,13 @@ import psutil
 import time
 import sys
 import json
-import Cleaner #imported from Cleaner.py script
+import os
+import time
+import Cleaner
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
+from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+
 
 default_onion_sites = [
 "mbrlkbtq5jonaqkurjwmxftytyn2ethqvbxfu4rgjbkkknndqwae6byd.onion", # Ransomware Intel Gathering dark web sites
@@ -58,8 +64,8 @@ def get_current_ip():
         return None, None
 
 def start_tor():
-    tor_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Tor\\tor.exe"
-    torrc_custom_path = "C:\\Users\\HOUSE-OF-L\\Desktop\\Tor Browser\\Browser\\TorBrowser\\Data\\Tor\\torrc_custom"
+    tor_path = "********\\Tor Browser\\Browser\\TorBrowser\\Tor\\tor.exe" # Replace "********" with path to tor.exe
+    torrc_custom_path = "********\\Tor Browser\\Browser\\TorBrowser\\Data\\Tor\\torrc_custom" # Replace "********" with path to torrc_custom
 
     # Terminate existing tor.exe processes
     for process in psutil.process_iter(['pid', 'name']):
@@ -107,20 +113,101 @@ def test_tor_connection(session):
         print(f"[+] Error testing Tor connection: {e}")
         return False
 
-def fetch_onion_content(session, onion_url, custom_site, custom_timeout):
+def setup_selenium_with_tor():
+    # Set the path to the Tor Browser's Firefox executable
+    tor_browser_path = '********\\Tor Browser\\Browser\\firefox.exe' # Replace "********" with path to firefox.exe Tor Browser
+
+    # Set Firefox options to use the Tor Browser executable and run in headless mode
+    options = Options()
+    options.binary_location = tor_browser_path
+    options.add_argument("--headless")
+
+    # Configure Firefox to use Tor's SOCKS proxy
+    options.set_preference("network.proxy.type", 1)  # Manual proxy configuration
+    options.set_preference("network.proxy.socks", "127.0.0.1")
+    options.set_preference("network.proxy.socks_port", 9050)
+    options.set_preference("network.proxy.socks_remote_dns", True)
+
+    # Initialize the WebDriver with the configured options
+    return webdriver.Firefox(options=options)  
+
+def needs_javascript(html_content):
+    conditions_met = 0
+
+    # Check for sparse content or specific placeholders
+    if "Loading" in html_content or "<div id='content-placeholder'>" in html_content:
+        conditions_met += 1
+
+    # Check for specific meta tags
+    if '<meta http-equiv="refresh"' in html_content:
+        conditions_met += 1
+
+    # Check for common JavaScript libraries
+    if "jquery.js" in html_content or "react.js" in html_content:
+        conditions_met += 1
+
+    # Check for JavaScript initiation functions
+    if "window.onload" in html_content or "document.ready" in html_content:
+        conditions_met += 1
+
+    if "need to enable JavaScript to run this app" in html_content:
+        conditions_met += 1
+
+    # Check for the presence of script tags
+    if "<script" in html_content:
+        conditions_met += 1
+
+    # Check for interactive elements (e.g., forms with JavaScript actions)
+    if '<form' in html_content and 'onsubmit="return' in html_content:
+        conditions_met += 1
+
+    # Check for comments that might hint at JavaScript operations
+    if "<!--" in html_content and "function()" in html_content:
+        conditions_met += 1
+
+    # Return True if two or more conditions are met
+    return conditions_met >= 2 # Raise or lower thresh hold for salenium to activate.
+
+def fetch_onion_content(session, onion_url, custom_site, custom_timeout, use_selenium=False):
     MAX_RETRIES = 3
     default_timeout = 45  # Default timeout for other sites
     timeout = custom_timeout if custom_site in onion_url else default_timeout
 
     for attempt in range(MAX_RETRIES):
         try:
+            # Fetch the content using requests
             response = session.get(onion_url, timeout=timeout)
-            return response.text
+            content = response.text
+
+            # Decide whether to use Selenium based on JavaScript requirements or use_selenium flag
+            if use_selenium or needs_javascript(content):
+                print(f"[+] JavaScript required or Selenium forced for {onion_url}. Fetching with Selenium.")
+                print("[+] Starting Selenium WebDriver")
+                driver = setup_selenium_with_tor()
+                print("[+] WebDriver started")
+                print(f"[+] Navigating to {onion_url}")
+                driver.get(onion_url)
+                print("[+] Waiting for JavaScript to execute")
+                time.sleep(10)  # Adjust the wait time as needed
+                print("[+] Fetching page source")
+                content = driver.page_source
+                print("[+] Quitting WebDriver")
+                driver.quit()
+
+            # Clean the fetched content using Cleaner
+            try:
+                cleaned_content = Cleaner.strip_html_tags_keep_images_remove_javascript(content)
+                return cleaned_content
+            except Exception as e:
+                print(f"[ERROR] Error in cleaning content: {e}")
+                return None
+
         except requests.exceptions.Timeout:
             print(f"[+] Request to {onion_url} timed out after {timeout} seconds.")
         except requests.exceptions.RequestException as e:
             print(f"[+] Attempt {attempt + 1} failed for {onion_url}: {e}")
             time.sleep(5)  # Wait for 5 seconds before retrying
+
     print(f"[+] Failed to fetch {onion_url} after {MAX_RETRIES} attempts.")
     return None
 
