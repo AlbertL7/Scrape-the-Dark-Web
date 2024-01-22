@@ -8,7 +8,7 @@ import psutil
 import time
 import sys
 import json
-import Cleaner
+import Cleaner #imported from Cleaner.py script
 
 default_onion_sites = [
 "mbrlkbtq5jonaqkurjwmxftytyn2ethqvbxfu4rgjbkkknndqwae6byd.onion", # Ransomware Intel Gathering dark web sites
